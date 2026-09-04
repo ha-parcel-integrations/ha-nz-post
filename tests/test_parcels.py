@@ -9,11 +9,14 @@ from custom_components.nz_post.const import (
 from custom_components.nz_post.parcels import (
     build_history,
     clean_description,
+    format_dimensions,
     map_event_status,
     map_parcel_status,
     normalize_parcel,
     parse_iso,
     sort_parcels_by_ts,
+    to_iso_timestamp,
+    tracking_url,
 )
 
 from .payloads import active_sample, delivered_sample, event
@@ -130,3 +133,55 @@ def test_placeholder_and_unknown_history_status_are_safe():
 def test_capabilities_match_confirmed_payload():
     assert CAPABILITIES == frozenset({"url", "history"})
     assert CAPABILITIES <= KNOWN_CAPABILITIES
+
+
+def test_missing_status_codes_map_to_nothing_without_warning(caplog):
+    assert map_parcel_status(None) is ParcelStatus.UNKNOWN
+    assert map_parcel_status("") is ParcelStatus.UNKNOWN
+    assert map_event_status(None) is None
+    assert map_event_status("") is None
+    assert "issues/new" not in caplog.text
+
+
+def test_parse_iso_handles_empty_unparseable_and_naive_values():
+    assert parse_iso(None) is None
+    assert parse_iso("") is None
+    assert parse_iso("not-a-date") is None
+    assert parse_iso("2026-09-01T10:00:00").tzinfo is not None
+
+
+def test_to_iso_timestamp_treats_numbers_as_epoch_milliseconds():
+    assert to_iso_timestamp(None) is None
+    assert to_iso_timestamp(1_756_000_000_000).startswith("2025-")
+    assert to_iso_timestamp(1e30) is None
+    assert to_iso_timestamp("2026-09-01T10:00:00Z") == "2026-09-01T10:00:00Z"
+
+
+def test_format_dimensions_needs_all_three_sides():
+    assert format_dimensions(None, 20, 10) is None
+    assert format_dimensions(20, None, 10) is None
+    assert format_dimensions(20, 20, None) is None
+    assert format_dimensions(20, 20, 10)["text"] == "20 x 20 x 10 cm"
+
+
+def test_clean_description_passes_none_through():
+    assert clean_description(None) is None
+
+
+def test_history_skips_malformed_events_and_keeps_unparseable_dates_last():
+    history = build_history(
+        [
+            "not-a-dict",
+            {"status": "Delivered"},
+            {"date_time": "not-a-date", "status": "Delivered"},
+            {"date_time": 1_756_000_000_000, "status": "Delivered"},
+        ]
+    )
+    assert len(history) == 2
+    assert history[-1]["timestamp"] == "not-a-date"
+
+
+def test_tracking_url_needs_a_code():
+    assert tracking_url(None) is None
+    assert tracking_url("") is None
+    assert "trackid=CODE" in tracking_url("CODE")
