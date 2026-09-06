@@ -16,7 +16,7 @@
       "init": {
         "title": "NZ Post-opties",
         "menu_options": {
-          "parcels": "Pakketten beheren",
+          "parcels": "Pakketten",
           "settings": "Instellingen"
         },
         "sections": {
