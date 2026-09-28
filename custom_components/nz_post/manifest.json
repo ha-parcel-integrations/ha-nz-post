@@ -2,7 +2,7 @@
   "domain": "nz_post",
   "name": "NZ Post",
   "codeowners": [
-    "@peternijssen"
+    "@peter-mdf"
   ],
   "config_flow": true,
   "documentation": "https://github.com/ha-parcel-integrations/ha-nz-post",
