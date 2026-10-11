@@ -124,6 +124,7 @@ The `status` field is the carrier-agnostic enum shared by the whole integration 
 | `in_transit` | In the sorting network |
 | `out_for_delivery` | With the courier today |
 | `delivered` | Delivered |
+| `problem` | NZ Post reports a delay or a delivery attempt that did not succeed |
 | `unknown` | Not yet scanned, or a status we have not mapped yet |
 
 The carrier's own human-readable text is always available as `raw_status`.

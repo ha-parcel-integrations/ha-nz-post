@@ -185,3 +185,136 @@ def test_tracking_url_needs_a_code():
     assert tracking_url(None) is None
     assert tracking_url("") is None
     assert "trackid=CODE" in tracking_url("CODE")
+
+
+@pytest.mark.parametrize(
+    ("text", "code", "expected"),
+    [
+        ("Label created", "5303", ParcelStatus.REGISTERED),
+        ("Shipment data submitted", "6908", ParcelStatus.REGISTERED),
+        ("Parcel pickup request received", "205", ParcelStatus.REGISTERED),
+        ("Parcel pickup request allocated to driver", "206", ParcelStatus.REGISTERED),
+    ],
+)
+def test_pre_handover_events_are_registered(text, code, expected):
+    assert map_parcel_status(text) is expected
+    assert map_parcel_status(code) is expected
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("Collected from sender", "13"),
+        ("Picked up/Collected", "5000"),
+        ("Ready for courier", "58"),
+        ("International arrival", "591"),
+        ("International arrival", "5015"),
+        ("Cleared for import", "6028"),
+        ("In transit to local depot", "595"),
+        ("In transit to local depot", "5020"),
+        ("International departure", "5007"),
+        ("International departure", "6025"),
+        ("At local/regional depot", "5017"),
+        ("At local/regional depot", "5360"),
+        ("Processing at international depot", "5041"),
+        ("Arrival at sort depot", "6054"),
+        ("Processed at facility", "6049"),
+        ("Processed at outbound depot", "5199"),
+        ("Processed at outbound depot", "5213"),
+        ("Flight arrival", "6063"),
+        ("Handover to airline", "6068"),
+        ("Handover for arrival processing", "6071"),
+        ("In transit with airline", "5064"),
+        ("In transit with airline", "5280"),
+        ("In transit with airline", "5282"),
+        ("In transit with airline", "5283"),
+        ("In transit with airline", "5284"),
+        ("In transit with airline", "5285"),
+        ("In transit with airline", "5292"),
+        ("In transit with airline", "6069"),
+    ],
+)
+def test_network_movement_is_in_transit_by_text_and_by_code(text, code):
+    assert map_parcel_status(text) is ParcelStatus.IN_TRANSIT
+    assert map_parcel_status(code) is ParcelStatus.IN_TRANSIT
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("With border agency", "5016"),
+        ("Held for clearance", "5019"),
+        ("Released for delivery", "5023"),
+    ],
+)
+def test_border_agency_events_stay_in_transit(text, code):
+    assert map_parcel_status(text) is ParcelStatus.IN_TRANSIT
+    assert map_parcel_status(code) is ParcelStatus.IN_TRANSIT
+
+
+@pytest.mark.parametrize(
+    ("text", "code"),
+    [
+        ("Delayed", "40"),
+        ("Delivery attempted - refer to card", "52"),
+    ],
+)
+def test_carrier_reported_exceptions_are_problems(text, code):
+    assert map_parcel_status(text) is ParcelStatus.PROBLEM
+    assert map_parcel_status(code) is ParcelStatus.PROBLEM
+
+
+def test_international_delivery_codes_match_their_domestic_wording():
+    assert map_parcel_status("5045") is ParcelStatus.OUT_FOR_DELIVERY
+    assert map_parcel_status("5022") is ParcelStatus.DELIVERED
+
+
+def test_ambiguous_handed_over_stays_unmapped(caplog):
+    assert map_parcel_status("Handed over") is ParcelStatus.UNKNOWN
+    assert map_parcel_status("144") is ParcelStatus.UNKNOWN
+    assert map_event_status("144") is None
+    assert "Unrecognised NZ Post status" in caplog.text
+
+
+def test_no_mapping_reaches_a_pickup_point():
+    from custom_components.nz_post.parcels import _EDIFACT_STATUS_MAP, _STATUS_MAP
+
+    assert ParcelStatus.AT_PICKUP_POINT not in set(_STATUS_MAP.values())
+    assert ParcelStatus.AT_PICKUP_POINT not in set(_EDIFACT_STATUS_MAP.values())
+
+
+def test_real_international_journey_maps_every_event():
+    journey = [
+        ("2026-07-06T22:55:00Z", "997", "Tracking number allocated to parcel"),
+        ("2026-07-07T07:55:47Z", "591", "International arrival"),
+        ("2026-07-07T07:56:47Z", "6028", "Cleared for import"),
+        ("2026-07-07T07:57:47Z", "595", "In transit to local depot"),
+        ("2026-07-07T13:51:23Z", "8", "Processed at depot"),
+        ("2026-07-07T18:49:38Z", "32", "With courier for delivery"),
+        ("2026-07-07T21:02:28Z", "22", "Delivered"),
+    ]
+    raw = {
+        "tracking_reference": "CODE",
+        "tracking_events": [
+            event(text, stamp, "", code) for stamp, code, text in journey
+        ],
+    }
+    parcel = normalize_parcel(raw, include_history=True)
+    assert [item["status"] for item in parcel["history"]] == [
+        ParcelStatus.REGISTERED,
+        ParcelStatus.IN_TRANSIT,
+        ParcelStatus.IN_TRANSIT,
+        ParcelStatus.IN_TRANSIT,
+        ParcelStatus.IN_TRANSIT,
+        ParcelStatus.OUT_FOR_DELIVERY,
+        ParcelStatus.DELIVERED,
+    ]
+    codeless = {
+        "tracking_reference": "CODE",
+        "tracking_events": [
+            {"date_time": stamp, "edifact_code": code} for stamp, code, _ in journey
+        ],
+    }
+    assert [
+        item["status"] for item in normalize_parcel(codeless, include_history=True)["history"]
+    ] == [item["status"] for item in parcel["history"]]

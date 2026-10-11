@@ -45,29 +45,90 @@ NEW_ISSUE_URL = (
     "?template=unrecognised_status.yml"
 )
 
+# Keyed by NZ Post's own display text, which every event carries. Ambiguous
+# wording is deliberately left out so it falls through to ``unknown`` and the
+# one-shot warning: "Handed over" (it follows a failed delivery attempt but
+# does not say to whom), and every delivery-attempt/collection code whose text
+# has not been seen on a real parcel.
 _STATUS_MAP: dict[str, ParcelStatus] = {
     "Tracking number allocated to parcel": ParcelStatus.REGISTERED,
     "Shipment data submitted": ParcelStatus.REGISTERED,
+    "Label created": ParcelStatus.REGISTERED,
+    "Parcel pickup request received": ParcelStatus.REGISTERED,
+    "Parcel pickup request allocated to driver": ParcelStatus.REGISTERED,
+    "Collected from sender": ParcelStatus.IN_TRANSIT,
+    "Picked up/Collected": ParcelStatus.IN_TRANSIT,
     "Handover to airline": ParcelStatus.IN_TRANSIT,
     "International departure": ParcelStatus.IN_TRANSIT,
     "Flight arrival": ParcelStatus.IN_TRANSIT,
     "International arrival": ParcelStatus.IN_TRANSIT,
     "Handover for arrival processing": ParcelStatus.IN_TRANSIT,
+    "With border agency": ParcelStatus.IN_TRANSIT,
+    "Held for clearance": ParcelStatus.IN_TRANSIT,
+    "Released for delivery": ParcelStatus.IN_TRANSIT,
     "Cleared for import": ParcelStatus.IN_TRANSIT,
     "Arrival at sort depot": ParcelStatus.IN_TRANSIT,
+    "Processing at international depot": ParcelStatus.IN_TRANSIT,
     "Processed at depot": ParcelStatus.IN_TRANSIT,
+    "Processed at outbound depot": ParcelStatus.IN_TRANSIT,
     "Processed at facility": ParcelStatus.IN_TRANSIT,
+    "At local/regional depot": ParcelStatus.IN_TRANSIT,
     "In transit with airline": ParcelStatus.IN_TRANSIT,
     "In transit to local depot": ParcelStatus.IN_TRANSIT,
+    "Ready for courier": ParcelStatus.IN_TRANSIT,
     "With courier for delivery": ParcelStatus.OUT_FOR_DELIVERY,
+    "Delayed": ParcelStatus.PROBLEM,
+    "Delivery attempted - refer to card": ParcelStatus.PROBLEM,
     "Delivered": ParcelStatus.DELIVERED,
 }
 
+# Fallback for an event that arrives without display text. Only codes whose
+# NZ Post wording is known are listed.
 _EDIFACT_STATUS_MAP: dict[str, ParcelStatus] = {
     "997": ParcelStatus.REGISTERED,
+    "205": ParcelStatus.REGISTERED,
+    "206": ParcelStatus.REGISTERED,
+    "5303": ParcelStatus.REGISTERED,
+    "6908": ParcelStatus.REGISTERED,
+    "13": ParcelStatus.IN_TRANSIT,
+    "5000": ParcelStatus.IN_TRANSIT,
     "8": ParcelStatus.IN_TRANSIT,
+    "58": ParcelStatus.IN_TRANSIT,
+    "591": ParcelStatus.IN_TRANSIT,
+    "595": ParcelStatus.IN_TRANSIT,
+    "6028": ParcelStatus.IN_TRANSIT,
+    "5007": ParcelStatus.IN_TRANSIT,
+    "6025": ParcelStatus.IN_TRANSIT,
+    "5015": ParcelStatus.IN_TRANSIT,
+    "5016": ParcelStatus.IN_TRANSIT,
+    "5019": ParcelStatus.IN_TRANSIT,
+    "5023": ParcelStatus.IN_TRANSIT,
+    "5017": ParcelStatus.IN_TRANSIT,
+    "5360": ParcelStatus.IN_TRANSIT,
+    "5020": ParcelStatus.IN_TRANSIT,
+    "5041": ParcelStatus.IN_TRANSIT,
+    "5042": ParcelStatus.IN_TRANSIT,
+    "5064": ParcelStatus.IN_TRANSIT,
+    "5280": ParcelStatus.IN_TRANSIT,
+    "5282": ParcelStatus.IN_TRANSIT,
+    "5283": ParcelStatus.IN_TRANSIT,
+    "5284": ParcelStatus.IN_TRANSIT,
+    "5285": ParcelStatus.IN_TRANSIT,
+    "5292": ParcelStatus.IN_TRANSIT,
+    "6069": ParcelStatus.IN_TRANSIT,
+    "6068": ParcelStatus.IN_TRANSIT,
+    "6063": ParcelStatus.IN_TRANSIT,
+    "6049": ParcelStatus.IN_TRANSIT,
+    "6054": ParcelStatus.IN_TRANSIT,
+    "6071": ParcelStatus.IN_TRANSIT,
+    "5199": ParcelStatus.IN_TRANSIT,
+    "5213": ParcelStatus.IN_TRANSIT,
     "32": ParcelStatus.OUT_FOR_DELIVERY,
+    "5045": ParcelStatus.OUT_FOR_DELIVERY,
+    "40": ParcelStatus.PROBLEM,
+    "52": ParcelStatus.PROBLEM,
     "22": ParcelStatus.DELIVERED,
+    "5022": ParcelStatus.DELIVERED,
 }
 
 # Status codes we have already warned about, so each unmapped one is logged

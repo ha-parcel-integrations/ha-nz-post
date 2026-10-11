@@ -55,7 +55,20 @@ known public payload contains recipient and
 operational location fields, so canonical `raw` retains only a cleaned event
 subset and diagnostics redact all tracking, signer and depot/run details.
 No observed raw status maps to `AT_PICKUP_POINT`, so this integration does not
-provide an `awaiting_pickup` sensor. API mechanics live in the private
+provide an `awaiting_pickup` sensor.
+
+Status mapping is keyed on NZ Post's own display text (`status`, present on
+every event), with `edifact_code` as a fallback for an event that arrives
+without it; both maps hold only wording NZ Post itself uses. `Delayed` (`40`)
+and `Delivery attempted - refer to card` (`52`) map to `problem`; border-agency
+events (`With border agency`, `Held for clearance`, `Released for delivery`)
+stay `in_transit`. Deliberately **unmapped** (they fall through to `unknown`
+plus the one-shot warning): `Handed over` (`144`, it follows a carded attempt
+and does not say to whom), and every collection-ready or other
+delivery-attempt code whose wording has not been seen on a real parcel. A
+collection-ready code would make `AT_PICKUP_POINT` reachable and then needs an
+`awaiting_pickup` sensor and a `pickup_point` capability check first. Event
+timestamps are real UTC (`Z`); don't add a timezone workaround. API mechanics live in the private
 `carrier-research/nz-post/api/` notes.
 
 ## Running tests
