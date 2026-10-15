@@ -8,8 +8,7 @@ Keep the contract the coordinator relies on:
 * raises :class:`NZPostApiError` for anything else, with
   ``status_code`` set on a non-2xx response and ``retry_after`` set when the
   carrier's own ``Retry-After`` header on a 429 could be parsed as seconds —
-  the coordinator's backoff (Section 3 of the dynamic-polling plan) reads
-  both,
+  the coordinator's backoff reads both,
 * lets ``aiohttp.ClientError`` propagate untouched — ``DataUpdateCoordinator``
   already wraps those into ``UpdateFailed``.
 """
