@@ -269,11 +269,17 @@ def test_international_delivery_codes_match_their_domestic_wording():
     assert map_parcel_status("5022") is ParcelStatus.DELIVERED
 
 
-def test_ambiguous_handed_over_stays_unmapped(caplog):
-    assert map_parcel_status("Handed over") is ParcelStatus.UNKNOWN
-    assert map_parcel_status("144") is ParcelStatus.UNKNOWN
-    assert map_event_status("144") is None
-    assert "Unrecognised NZ Post status" in caplog.text
+def test_handed_over_is_in_transit_not_at_a_pickup_point(caplog):
+    """Its own text says "ready for collection soon" — on the way, not there."""
+    assert map_parcel_status("Handed over") is ParcelStatus.IN_TRANSIT
+    assert map_parcel_status("144") is ParcelStatus.IN_TRANSIT
+    assert map_event_status("144") is ParcelStatus.IN_TRANSIT
+    assert "Unrecognised NZ Post status" not in caplog.text
+
+
+def test_arrival_at_sorting_centre_is_in_transit():
+    assert map_parcel_status("Arrival at sorting centre") is ParcelStatus.IN_TRANSIT
+    assert map_parcel_status("5042") is ParcelStatus.IN_TRANSIT
 
 
 def test_no_mapping_reaches_a_pickup_point():

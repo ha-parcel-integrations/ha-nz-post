@@ -68,6 +68,10 @@ _STATUS_MAP: dict[str, ParcelStatus] = {
     "Released for delivery": ParcelStatus.IN_TRANSIT,
     "Cleared for import": ParcelStatus.IN_TRANSIT,
     "Arrival at sort depot": ParcelStatus.IN_TRANSIT,
+    "Arrival at sorting centre": ParcelStatus.IN_TRANSIT,
+    # "handed over and will be ready for collection soon" — on its way to a
+    # pickup point, not collectable yet, so deliberately not at_pickup_point.
+    "Handed over": ParcelStatus.IN_TRANSIT,
     "Processing at international depot": ParcelStatus.IN_TRANSIT,
     "Processed at depot": ParcelStatus.IN_TRANSIT,
     "Processed at outbound depot": ParcelStatus.IN_TRANSIT,
@@ -91,6 +95,7 @@ _EDIFACT_STATUS_MAP: dict[str, ParcelStatus] = {
     "5303": ParcelStatus.REGISTERED,
     "6908": ParcelStatus.REGISTERED,
     "13": ParcelStatus.IN_TRANSIT,
+    "144": ParcelStatus.IN_TRANSIT,  # pairs with "Handed over"
     "5000": ParcelStatus.IN_TRANSIT,
     "8": ParcelStatus.IN_TRANSIT,
     "58": ParcelStatus.IN_TRANSIT,

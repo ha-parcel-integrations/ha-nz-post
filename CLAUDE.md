@@ -62,12 +62,16 @@ every event), with `edifact_code` as a fallback for an event that arrives
 without it; both maps hold only wording NZ Post itself uses. `Delayed` (`40`)
 and `Delivery attempted - refer to card` (`52`) map to `problem`; border-agency
 events (`With border agency`, `Held for clearance`, `Released for delivery`)
-stay `in_transit`. Deliberately **unmapped** (they fall through to `unknown`
-plus the one-shot warning): `Handed over` (`144`, it follows a carded attempt
-and does not say to whom), and every collection-ready or other
-delivery-attempt code whose wording has not been seen on a real parcel. A
-collection-ready code would make `AT_PICKUP_POINT` reachable and then needs an
-`awaiting_pickup` sensor and a `pickup_point` capability check first. Event
+stay `in_transit`. `Handed over` (`144`) and `Arrival at sorting centre` (`5042`) were confirmed
+on real parcels on 2026-10-17. `Handed over` maps to `in_transit`, not
+`at_pickup_point`: its own description reads "handed over and will be ready
+for collection soon", so the parcel is on its way to a collection point
+rather than waiting at one. That keeps `AT_PICKUP_POINT` unreachable, which is
+deliberate — a genuinely collection-*ready* code would make it reachable and
+then needs an `awaiting_pickup` sensor and a `pickup_point` capability check
+first. Still deliberately **unmapped** (falling through to `unknown` plus the
+one-shot warning): every collection-ready or other delivery-attempt code whose
+wording has not been seen on a real parcel. Event
 timestamps are real UTC (`Z`); don't add a timezone workaround. API mechanics live in the private
 `carrier-research/nz-post/api/` notes.
 
