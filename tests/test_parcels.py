@@ -1,4 +1,5 @@
 """Tests for NZ Post's pure parcel mapping helpers."""
+
 import pytest
 
 from custom_components.nz_post.const import (
@@ -7,6 +8,8 @@ from custom_components.nz_post.const import (
     ParcelStatus,
 )
 from custom_components.nz_post.parcels import (
+    _EDIFACT_STATUS_MAP,
+    _STATUS_MAP,
     build_history,
     clean_description,
     format_dimensions,
@@ -50,14 +53,25 @@ def test_unknown_status_warns_once(caplog):
 
 def test_history_sorts_cleans_and_caps():
     events = [
-        event("Delivered", "2026-04-29T13:12:42+12:00", "Delivered <b>&amp; signed</b>", "22"),
+        event(
+            "Delivered",
+            "2026-04-29T13:12:42+12:00",
+            "Delivered <b>&amp; signed</b>",
+            "22",
+        ),
         event("Shipment data submitted", "2026-04-27T23:03:58+12:00", "\x00Submitted"),
     ]
     history = build_history(events)
-    assert [item["raw_status"] for item in history] == ["Shipment data submitted", "Delivered"]
+    assert [item["raw_status"] for item in history] == [
+        "Shipment data submitted",
+        "Delivered",
+    ]
     assert history[-1]["status"] is ParcelStatus.DELIVERED
     assert parse_iso(history[0]["timestamp"]).tzinfo is not None
-    many = [event("Processed at depot", f"2026-05-{day:02d}T10:00:00+12:00", "Moved") for day in range(1, 26)]
+    many = [
+        event("Processed at depot", f"2026-05-{day:02d}T10:00:00+12:00", "Moved")
+        for day in range(1, 26)
+    ]
     assert len(build_history(many)) == 20
 
 
@@ -74,12 +88,17 @@ def test_normalize_delivered_is_safe_and_canonical():
     assert parcel["status"] is ParcelStatus.DELIVERED
     assert parcel["delivered_at"] == "2026-04-29T13:12:42+12:00"
     assert parcel["sender"] is parcel["receiver"] is None
-    assert parcel["url"] == "https://www.nzpost.co.nz/tools/tracking?trackid=" + parcel["barcode"]
+    assert (
+        parcel["url"]
+        == "https://www.nzpost.co.nz/tools/tracking?trackid=" + parcel["barcode"]
+    )
     assert parcel["weight"] is parcel["dimensions"] is parcel["pickup_point"] is None
     assert parcel["pickup"] is False
     assert "signed_by" not in str(parcel)
     assert "Private depot" not in str(parcel)
-    assert parcel["raw"]["tracking_events"][0]["description"] == "Delivered to recipient"
+    assert (
+        parcel["raw"]["tracking_events"][0]["description"] == "Delivered to recipient"
+    )
 
 
 def test_normalize_has_the_exact_canonical_key_set():
@@ -110,7 +129,9 @@ def test_sort_parcels_by_timestamp_keeps_missing_values_last():
         {"barcode": "missing", "planned_from": None},
         {"barcode": "earlier", "planned_from": "2026-05-01T10:00:00+00:00"},
     ]
-    assert [parcel["barcode"] for parcel in sort_parcels_by_ts(parcels, "planned_from")] == [
+    assert [
+        parcel["barcode"] for parcel in sort_parcels_by_ts(parcels, "planned_from")
+    ] == [
         "earlier",
         "later",
         "missing",
@@ -126,12 +147,15 @@ def test_normalize_uses_newest_event_even_when_payload_is_unsorted():
 
 
 def test_placeholder_and_unknown_history_status_are_safe():
-    assert normalize_parcel({"tracking_reference": "CODE"})["status"] is ParcelStatus.UNKNOWN
+    assert (
+        normalize_parcel({"tracking_reference": "CODE"})["status"]
+        is ParcelStatus.UNKNOWN
+    )
     assert map_event_status("Unseen") is None
 
 
 def test_capabilities_match_confirmed_payload():
-    assert CAPABILITIES == frozenset({"url", "history"})
+    assert frozenset({"url", "history"}) == CAPABILITIES
     assert CAPABILITIES <= KNOWN_CAPABILITIES
 
 
@@ -283,8 +307,6 @@ def test_arrival_at_sorting_centre_is_in_transit():
 
 
 def test_no_mapping_reaches_a_pickup_point():
-    from custom_components.nz_post.parcels import _EDIFACT_STATUS_MAP, _STATUS_MAP
-
     assert ParcelStatus.AT_PICKUP_POINT not in set(_STATUS_MAP.values())
     assert ParcelStatus.AT_PICKUP_POINT not in set(_EDIFACT_STATUS_MAP.values())
 
@@ -322,5 +344,6 @@ def test_real_international_journey_maps_every_event():
         ],
     }
     assert [
-        item["status"] for item in normalize_parcel(codeless, include_history=True)["history"]
+        item["status"]
+        for item in normalize_parcel(codeless, include_history=True)["history"]
     ] == [item["status"] for item in parcel["history"]]

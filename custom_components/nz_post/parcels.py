@@ -12,12 +12,13 @@ timestamp parsing, the history builder, the sort contract, the delivered
 filter, the one-shot warning for unmapped statuses — is suite-wide machinery
 and should be left alone.
 """
+
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+from html import unescape
 import logging
 import re
-from datetime import datetime, timedelta, timezone
-from html import unescape
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -194,11 +195,11 @@ def parse_iso(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(str(value))
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
     return parsed
 
 
@@ -214,7 +215,7 @@ def to_iso_timestamp(value: Any) -> str | None:
         return None
     if isinstance(value, (int, float)):
         try:
-            return datetime.fromtimestamp(value / 1000, tz=timezone.utc).isoformat()
+            return datetime.fromtimestamp(value / 1000, tz=UTC).isoformat()
         except (OverflowError, OSError, ValueError):
             return None
     return str(value)
@@ -271,7 +272,9 @@ def build_history(
             continue
         entry = {
             "timestamp": timestamp,
-            "status": map_event_status(event.get("status") or event.get("edifact_code")),
+            "status": map_event_status(
+                event.get("status") or event.get("edifact_code")
+            ),
             "raw_status": event.get("status") or event.get("edifact_code"),
         }
         parsed = parse_iso(timestamp)
@@ -315,14 +318,26 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     and the original full timeline are deliberately excluded from ``raw``.
     """
     tracking_code = raw.get("tracking_reference")
-    events = [event for event in raw.get("tracking_events", []) if isinstance(event, dict)]
-    events.sort(key=lambda event: parse_iso(to_iso_timestamp(event.get("date_time"))) or datetime.max.replace(tzinfo=timezone.utc))
+    events = [
+        event for event in raw.get("tracking_events", []) if isinstance(event, dict)
+    ]
+    events.sort(
+        key=lambda event: (
+            parse_iso(to_iso_timestamp(event.get("date_time")))
+            or datetime.max.replace(tzinfo=UTC)
+        )
+    )
     newest = events[-1] if events else {}
     status_code = newest.get("status") or newest.get("edifact_code")
     status = map_parcel_status(status_code)
     delivered = status is ParcelStatus.DELIVERED
     delivered_event = next(
-        (event for event in reversed(events) if map_parcel_status(event.get("status") or event.get("edifact_code")) is ParcelStatus.DELIVERED),
+        (
+            event
+            for event in reversed(events)
+            if map_parcel_status(event.get("status") or event.get("edifact_code"))
+            is ParcelStatus.DELIVERED
+        ),
         None,
     )
     safe_events = sanitize_raw_parcel(raw)["tracking_events"]
@@ -335,7 +350,9 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
         "status": status,
         "raw_status": status_code,
         "delivered": delivered,
-        "delivered_at": to_iso_timestamp(delivered_event.get("date_time")) if delivered_event else None,
+        "delivered_at": to_iso_timestamp(delivered_event.get("date_time"))
+        if delivered_event
+        else None,
         "planned_from": None,
         "planned_to": None,
         "pickup": False,
@@ -379,14 +396,12 @@ def apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dict
     shows.
     """
     options = entry.options
-    filter_type = options.get(
-        CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE
-    )
+    filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
     amount = int(
         options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
     )
     if filter_type == "days":
-        cutoff = datetime.now(timezone.utc) - timedelta(days=amount)
+        cutoff = datetime.now(UTC) - timedelta(days=amount)
         return [
             parcel
             for parcel in parcels

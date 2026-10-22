@@ -1,4 +1,5 @@
 """Tests for the NZ Post refresh button."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.nz_post.button import NZPostRefreshButton
