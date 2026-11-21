@@ -37,12 +37,14 @@ This repo follows it exactly.
   summary+diagnostic sensors. Add a new non-parcel sensor's unique_id to the set.
 - **Per-parcel sensors are removed by the summary sensor** via
   `entity_registry.async_remove` (self-removal races and leaves ghosts).
-- **If this carrier can reach `ParcelStatus.AT_PICKUP_POINT` from a real raw
-  status/code**, it needs an `awaiting_pickup` sensor — see *Parcel contract*
-  in `CONVENTIONS.md`. Say "pickup point", not "ServicePoint"/"parcel
-  shop"/"locker", for the generic concept. `ha-dhl-nl`, `ha-dpd`, `ha-gls`,
-  `ha-inpost` are reference implementations; `nz_post` here does not
-  demonstrate it yet.
+- **The pickup-point summaries are a pair.** A carrier that can deliver to a
+  pickup point or locker exposes both `en_route_to_pickup_point` and
+  `awaiting_pickup`, even before a real parcel has shown the status or flag
+  (they read 0 until then; record it in `PENDING_*`). A carrier without pickup
+  points exposes neither and keeps `pickup` constantly False.
+  See *Parcel contract* in `CONVENTIONS.md`. Say "pickup point", not
+  "ServicePoint"/"parcel shop"/"locker", for the generic concept; the
+  example carrier demonstrates both canonical sensors.
 
 ## Carrier-specific notes
 
@@ -54,8 +56,15 @@ capabilities — `url` is a confirmed `?trackid=<code>` deep link
 known public payload contains recipient and
 operational location fields, so canonical `raw` retains only a cleaned event
 subset and diagnostics redact all tracking, signer and depot/run details.
-No observed raw status maps to `AT_PICKUP_POINT`, so this integration does not
-provide an `awaiting_pickup` sensor.
+No observed raw status maps to `AT_PICKUP_POINT`, so `pickup` is `False` and
+`pickup_point` `None` for now. NZ Post does deliver to collection points
+("handed over and will be ready for collection soon"), so both
+`awaiting_pickup` and `en_route_to_pickup_point` exist and read 0 until a real
+parcel shows a collection-ready code or a pickup route; `pickup_point` is in
+`PENDING_CAPABILITIES` for the same reason. `pickup` comes from `is_pickup`,
+so it turns on by itself once a collection-ready status is mapped. `Handed
+over` (`144`) is deliberately not treated as route evidence: whether it means
+a collection point or a courier depot hand-over is unconfirmed.
 
 Status mapping is keyed on NZ Post's own display text (`status`, present on
 every event), with `edifact_code` as a fallback for an event that arrives
@@ -65,8 +74,8 @@ events (`With border agency`, `Held for clearance`, `Released for delivery`)
 stay `in_transit`. `Handed over` (`144`) and `Arrival at sorting centre` (`5042`) were confirmed
 on real parcels on 2026-10-17. `Handed over` maps to `in_transit`, not
 `at_pickup_point`: its own description reads "handed over and will be ready
-for collection soon", so the parcel is on its way to a collection point
-rather than waiting at one. That keeps `AT_PICKUP_POINT` unreachable, which is
+for collection soon", so it is not yet collectable (whether the hand-over
+is to a collection point is unconfirmed). That keeps `AT_PICKUP_POINT` unreachable, which is
 deliberate — a genuinely collection-*ready* code would make it reachable and
 then needs an `awaiting_pickup` sensor and a `pickup_point` capability check
 first. Still deliberately **unmapped** (falling through to `unknown` plus the

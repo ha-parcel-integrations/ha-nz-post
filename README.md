@@ -35,7 +35,7 @@ A custom Home Assistant integration that tracks [NZ Post](https://www.nzpost.co.
 
 - Track any number of NZ Post parcels by tracking code — no account needed
 - Per-parcel sensor with the canonical status, NZ Post's latest status text and a link to the public tracker
-- Summary sensors: incoming parcels, next delivery, recently delivered parcels
+- Summary sensors: incoming parcels, next delivery, en route to pickup point, awaiting pickup, recently delivered parcels
 - Read-only **Deliveries** calendar; NZ Post currently does not expose delivery dates, so it remains empty until that data is confirmed
 - `nz_post.track_parcel` / `nz_post.untrack_parcel` services, so a dashboard button can add a parcel
 - Events + device triggers for no-code automations (parcel registered, status changed, delivered, delivery time changed)
@@ -114,6 +114,8 @@ Standard HA removal applies: **Settings → Devices & Services → NZ Post → �
 | `sensor.nz_post_incoming_parcels` | Number of active tracked parcels, full list under the `parcels` attribute |
 | `sensor.nz_post_parcel_<code>` | One per tracked parcel; state is the canonical status, attributes carry the full normalised parcel |
 | `sensor.nz_post_next_delivery` | Earliest confirmed delivery moment; NZ Post currently does not provide one |
+| `sensor.nz_post_en_route_to_pickup_point` | Active parcels heading to a pickup point; stays 0 until NZ Post reports one |
+| `sensor.nz_post_awaiting_pickup` | Parcels ready for collection; stays 0 until NZ Post reports one |
 | `sensor.nz_post_delivered_parcels` | Recently delivered parcels (see the retention option) |
 | `calendar.nz_post_deliveries` | Read-only calendar of expected deliveries, no extra API calls |
 | `sensor.nz_post_last_successful_update` | Diagnostic: when NZ Post was last polled successfully |

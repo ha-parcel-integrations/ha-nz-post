@@ -5,7 +5,9 @@ from unittest.mock import MagicMock
 
 from custom_components.nz_post.const import ParcelStatus
 from custom_components.nz_post.sensor import (
+    NZPostAwaitingPickupSensor,
     NZPostDeliveredParcelsSensor,
+    NZPostEnRouteToPickupPointSensor,
     NZPostIncomingParcelsSensor,
     NZPostLastUpdateSensor,
     NZPostNextDeliverySensor,
@@ -66,12 +68,12 @@ def test_parcel_sensor_missing_barcode():
 def test_next_delivery_picks_earliest():
     coordinator = _coordinator(
         [
-            _parcel("A", planned_from="2026-05-02T10:00:00Z"),
-            _parcel("B", planned_from="2026-05-01T10:00:00Z"),
+            _parcel("A", planned_from="2099-05-02T10:00:00Z"),
+            _parcel("B", planned_from="2099-05-01T10:00:00Z"),
         ]
     )
     sensor = NZPostNextDeliverySensor(coordinator, _entry())
-    assert sensor.native_value == datetime(2026, 5, 1, 10, 0, tzinfo=UTC)
+    assert sensor.native_value == datetime(2099, 5, 1, 10, 0, tzinfo=UTC)
     assert sensor.extra_state_attributes["barcode"] == "B"
 
 
@@ -85,7 +87,7 @@ def test_next_delivery_skips_unparseable_moment():
     coordinator = _coordinator(
         [
             _parcel("A", planned_from="not-a-date"),
-            _parcel("B", planned_from="2026-05-01T10:00:00Z"),
+            _parcel("B", planned_from="2099-05-01T10:00:00Z"),
         ]
     )
     sensor = NZPostNextDeliverySensor(coordinator, _entry())
@@ -107,3 +109,34 @@ def test_last_update_sensor():
     coordinator.last_success_time = moment
     sensor = NZPostLastUpdateSensor(coordinator, _entry())
     assert sensor.native_value == moment
+
+
+def test_next_delivery_skips_a_window_that_has_ended():
+    sensor = NZPostNextDeliverySensor(
+        _coordinator(
+            [
+                _parcel("A", planned_from="2000-01-01T10:00:00Z"),
+                _parcel("B", planned_from="2099-05-01T10:00:00Z"),
+            ]
+        ),
+        _entry(),
+    )
+    assert sensor.native_value == datetime(2099, 5, 1, 10, 0, tzinfo=UTC)
+    assert sensor.extra_state_attributes["barcode"] == "B"
+
+
+def test_pickup_sensors_split_by_status():
+    coordinator = _coordinator(
+        [
+            _parcel("A", pickup=True),
+            _parcel("B", status=ParcelStatus.AT_PICKUP_POINT, pickup=True),
+            _parcel("C", status=ParcelStatus.RETURNING, pickup=True),
+            _parcel("D"),
+        ]
+    )
+    en_route = NZPostEnRouteToPickupPointSensor(coordinator, _entry())
+    awaiting = NZPostAwaitingPickupSensor(coordinator, _entry())
+    assert [p["barcode"] for p in en_route.extra_state_attributes["parcels"]] == ["A"]
+    assert [p["barcode"] for p in awaiting.extra_state_attributes["parcels"]] == ["B"]
+    assert en_route.native_value == 1
+    assert awaiting.native_value == 1
