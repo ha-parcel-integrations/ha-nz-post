@@ -515,3 +515,25 @@ async def test_a_parcel_the_delivered_list_leaves_out_still_fires_delivered(hass
 
     assert sorted(e.data["barcode"] for e in delivered) == sorted([first, second])
     assert len(coordinator.delivered) == 1
+
+
+async def test_user_contents_overlays_the_poll_and_reapply_needs_no_fetch(hass):
+    entry = _entry_with([{CONF_TRACKING_CODE: ACTIVE_CODE}])
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    client.async_get_parcel.return_value = active_sample()
+    coordinator = NZPostCoordinator(hass, client, entry)
+    coordinator.contents_store.async_set(ACTIVE_CODE, "Running shoes")
+
+    data = await coordinator._async_update_data()
+    assert data[0]["contents"] == "Running shoes"
+
+    coordinator.data = data
+    coordinator.contents_store.async_set(ACTIVE_CODE, "Winter socks")
+    client.async_get_parcel.reset_mock()
+    coordinator.async_reapply_contents()
+    assert data[0]["contents"] == "Winter socks"
+    coordinator.contents_store.async_set(ACTIVE_CODE, None)
+    coordinator.async_reapply_contents()
+    assert data[0]["contents"] is None
+    client.async_get_parcel.assert_not_called()

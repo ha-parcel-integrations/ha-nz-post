@@ -107,6 +107,7 @@ def test_normalize_has_the_exact_canonical_key_set():
         "barcode",
         "sender",
         "receiver",
+        "contents",
         "status",
         "raw_status",
         "delivered",
@@ -157,6 +158,7 @@ def test_placeholder_and_unknown_history_status_are_safe():
 def test_capabilities_match_confirmed_payload():
     assert frozenset({"url", "history"}) == CAPABILITIES
     assert CAPABILITIES <= KNOWN_CAPABILITIES
+    assert "contents" in KNOWN_CAPABILITIES - CAPABILITIES
 
 
 def test_missing_status_codes_map_to_nothing_without_warning(caplog):
